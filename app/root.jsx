@@ -1,4 +1,14 @@
-import { Meta, Links, Outlet, Scripts, LiveReload } from "@remix-run/react";
+import { useState, useEffect } from "react";
+import {
+  Meta,
+  Links,
+  Outlet,
+  Scripts,
+  LiveReload,
+  isRouteErrorResponse,
+  useRouteError,
+  Link,
+} from "@remix-run/react";
 import styles from "~/styles/index.css";
 import Header from "~/components/header";
 import Footer from "~/components/footer";
@@ -40,9 +50,61 @@ export function links() {
 }
 
 export default function App() {
+  const carritoLS =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("carrito")) ?? []
+      : null;
+  const [carrito, setCarrito] = useState(carritoLS);
+
+  useEffect(() => {
+    localStorage.setItem("carrito", JSON.stringify(carrito));
+  }, [carrito]);
+
+  const agregarCarrito = (guitarra) => {
+    if (carrito.some((guitarraState) => guitarraState.id === guitarra.id)) {
+      // Iterar sobre el arreglo, identificar el elemento duplicado
+      const carritoActualizado = carrito.map((guitarraState) => {
+        if (guitarraState.id === guitarra.id) {
+          // Reescribir la cantidad
+          guitarraState.cantidad = guitarra.cantidad;
+        }
+        return guitarraState;
+      });
+      // Añadir al carrito
+      setCarrito(carritoActualizado);
+    } else {
+      // Registro nuevo, agregar al carrito
+      setCarrito([...carrito, guitarra]);
+    }
+  };
+
+  const actualizarCantidad = (guitarra) => {
+    const carritoActualizado = carrito.map((guitarraState) => {
+      if (guitarraState.id === guitarra.id) {
+        guitarraState.cantidad = guitarra.cantidad;
+      }
+      return guitarraState;
+    });
+    setCarrito(carritoActualizado);
+  };
+
+  const eliminarGuitarra = (id) => {
+    const carritoActualizado = carrito.filter(
+      (guitarraState) => guitarraState.id !== id
+    );
+    setCarrito(carritoActualizado);
+  };
+
   return (
     <Document>
-      <Outlet />
+      <Outlet
+        context={{
+          agregarCarrito,
+          carrito,
+          actualizarCantidad,
+          eliminarGuitarra,
+        }}
+      />
     </Document>
   );
 }
@@ -65,24 +127,52 @@ function Document({ children }) {
   );
 }
 
-// Manejo de errores
-export function CatchBoundary() {
-  const error = useCatch();
-  return (
-    <Document>
-      <p className="error">
-        {error.status} {error.statusText}
-      </p>
-    </Document>
-  );
-}
+export function ErrorBoundary() {
+  const error = useRouteError();
 
-export function ErrorBoundary(error) {
-  return (
-    <Document>
-      <p className="error">
-        {error.status} {error.statusText}
-      </p>
-    </Document>
-  );
+  if (isRouteErrorResponse(error)) {
+    return (
+      <html lang="es">
+        <head>
+          <title> GuitarLA - Oops!</title>
+          <Links />
+        </head>
+        <body>
+          <Header />
+
+          <p className="error">
+            {error.status} {error.statusText}
+          </p>
+          <Link className="error-enlace" to={"/"}>
+            Tal vez quieras volver a la página principal
+          </Link>
+
+          <Footer />
+          <Scripts />
+          <LiveReload />
+        </body>
+      </html>
+    );
+  } else {
+    return (
+      <html lang="es">
+        <head>
+          <title> GuitarLA - Oops!</title>
+          <Links />
+        </head>
+        <body>
+          <Header />
+
+          <p className="error">Error Inesperado</p>
+          <Link className="error-enlace" to={"/"}>
+            Tal vez quieras volver a la página principal
+          </Link>
+
+          <Footer />
+          <Scripts />
+          <LiveReload />
+        </body>
+      </html>
+    );
+  }
 }
